@@ -1,5 +1,5 @@
-from dotenv 
-import load_dotenv load_dotenv()
+from dotenv import load_dotenv
+load_dotenv()
 import logging
 import json
 import sqlite3
@@ -38,7 +38,7 @@ def chamar_gemini(prompt: str) -> str:
     data = {"contents": [{"parts": [{"text": prompt}]}]}
     json_data = json.dumps(data).encode('utf-8')
     req = urllib.request.Request(url, data=json_data, headers=headers, method='POST')
-    
+
     try:
         with urllib.request.urlopen(req) as response:
             res_body = response.read().decode('utf-8')
@@ -73,7 +73,7 @@ def init_db():
             media_type TEXT DEFAULT NULL
         )
     ''')
-    
+
     # Atualiza tabela caso venha de versão antiga sem premio2/premio3
     try:
         c.execute('ALTER TABLE configuracao ADD COLUMN premio2 TEXT DEFAULT NULL')
@@ -100,7 +100,7 @@ def init_db():
             "74981552779",
             "A definir (Loteria Federal)"
         ))
-        
+
     c.execute('''
         CREATE TABLE IF NOT EXISTS bilhetes (
             numero INTEGER PRIMARY KEY,
@@ -109,12 +109,12 @@ def init_db():
             status TEXT DEFAULT 'LIVRE'
         )
     ''')
-    
+
     c.execute('SELECT COUNT(*) FROM bilhetes')
     if c.fetchone()[0] == 0:
         for i in range(100):
             c.execute('INSERT INTO bilhetes (numero, status) VALUES (?, ?)', (i, 'LIVRE'))
-            
+
     conn.commit()
     conn.close()
 
@@ -135,7 +135,7 @@ def update_config_field(field_name, value):
     campos_permitidos = ["titulo", "historia", "premio", "premio2", "premio3", "valor_cota", "qtd_numeros", "chave_pix", "data_sorteio", "media_id", "media_type"]
     if field_name not in campos_permitidos:
         return
-        
+
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
     c.execute(f"UPDATE configuracao SET {field_name} = ? WHERE id = 1", (value,))
@@ -177,15 +177,15 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     c.execute("SELECT COUNT(*) FROM bilhetes WHERE status = 'PAGO'")
     pagos = c.fetchone()[0]
     conn.close()
-    
+
     progresso = int((pagos / cfg['qtd_numeros']) * 100)
-    
+
     texto_premios = f"🥇 *1º PRÊMIO:* {cfg['premio']}\n"
     if cfg['premio2']:
         texto_premios += f"🥈 *2º PRÊMIO:* {cfg['premio2']}\n"
     if cfg['premio3']:
         texto_premios += f"🥉 *3º PRÊMIO:* {cfg['premio3']}\n"
-        
+
     formato_nome = "Dezenas (00-99)" if cfg['qtd_numeros'] == 100 else ("Centenas (000-999)" if cfg['qtd_numeros'] == 1000 else "Milhares (0000-9999)")
 
     texto = (
@@ -200,13 +200,13 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"────────────────────────────────────────\n"
         f"Escolha uma opção abaixo para colaborar:"
     )
-    
+
     keyboard = [
         [InlineKeyboardButton("🎟️ Escolher / Ver Números", callback_data="ver_numeros")],
         [InlineKeyboardButton("📋 Meus Bilhetes", callback_data="meus_bilhetes")]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
-    
+
     chat_id = update.effective_chat.id
 
     if update.callback_query:
@@ -229,13 +229,13 @@ async def meus_bilhetes(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.answer()
     user_id = query.from_user.id
     cfg = get_config()
-    
+
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
     c.execute("SELECT numero, status FROM bilhetes WHERE user_id = ?", (user_id,))
     meus = c.fetchall()
     conn.close()
-    
+
     if not meus:
         texto = "📋 *SEUS BILHETES*\n────────────────────────────────────────\nVocê ainda não escolheu nenhum número."
     else:
@@ -244,7 +244,7 @@ async def meus_bilhetes(update: Update, context: ContextTypes.DEFAULT_TYPE):
             st = "✅ Pago/Confirmado" if status == "PAGO" else "⏳ Reservado (Aguardando Comprovante)"
             num_fmt = formatar_numero(num, cfg['qtd_numeros'])
             texto += f"• *Nº {num_fmt}*: {st}\n"
-            
+
     keyboard = [[InlineKeyboardButton("⬅️ Voltar", callback_data="menu_principal")]]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
@@ -258,16 +258,16 @@ async def ver_numeros(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
     cfg = get_config()
-    
+
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
     c.execute("SELECT status, COUNT(*) FROM bilhetes GROUP BY status")
     stats = dict(c.fetchall())
-    
+
     pagos = stats.get('PAGO', 0)
     reservados = stats.get('RESERVADO', 0)
     livres = stats.get('LIVRE', 0)
-    
+
     if cfg['qtd_numeros'] <= 100:
         c.execute("SELECT numero, status FROM bilhetes ORDER BY numero ASC")
         bilhetes = c.fetchall()
@@ -277,7 +277,7 @@ async def ver_numeros(update: Update, context: ContextTypes.DEFAULT_TYPE):
             grid += f"{formatar_numero(num, cfg['qtd_numeros'])} {icon} | "
             if (num + 1) % 5 == 0:
                 grid += "\n"
-                
+
         texto = (
             f"🎟️ *SELEÇÃO DE NÚMEROS BENEFICENTES*\n"
             f"────────────────────────────────────────\n"
@@ -298,9 +298,9 @@ async def ver_numeros(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"Para escolher e reservar o seu bilhete, **digite o número desejado no chat**!\n"
             f"👉 Exemplo: Digite `{exemplo}` no chat."
         )
-    
+
     conn.close()
-    
+
     keyboard = [[InlineKeyboardButton("⬅️ Voltar ao Menu", callback_data="menu_principal")]]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
@@ -313,10 +313,10 @@ async def ver_numeros(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def processar_mensagem_texto(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.message.from_user.id
     texto = update.message.text.strip()
-    
+
     if user_id == ADMIN_TELEGRAM_ID and context.user_data.get("editing_field"):
         field = context.user_data["editing_field"]
-        
+
         if field == "valor_cota":
             try:
                 valor = float(texto.replace(",", "."))
@@ -326,7 +326,7 @@ async def processar_mensagem_texto(update: Update, context: ContextTypes.DEFAULT
                 return
         else:
             update_config_field(field, texto)
-            
+
         context.user_data["editing_field"] = None
         await update.message.reply_text(f"✅ Campo *{field.upper()}* atualizado com sucesso!", parse_mode="Markdown")
         await admin_panel(update, context)
@@ -335,27 +335,27 @@ async def processar_mensagem_texto(update: Update, context: ContextTypes.DEFAULT
     if texto.isdigit():
         num = int(texto)
         cfg = get_config()
-        
+
         if num < 0 or num >= cfg['qtd_numeros']:
             ex_max = formatar_numero(cfg['qtd_numeros'] - 1, cfg['qtd_numeros'])
             await update.message.reply_text(f"❌ Número fora do limite! Escolha entre `0` e `{ex_max}`.")
             return
-            
+
         conn = sqlite3.connect(DB_NAME)
         c = conn.cursor()
         c.execute("SELECT status FROM bilhetes WHERE numero = ?", (num,))
         res = c.fetchone()
-        
+
         if not res or res[0] != 'LIVRE':
             await update.message.reply_text("⚠️ Este número já está reservado ou foi pago. Escolha outro!")
             conn.close()
             return
-            
-        c.execute("UPDATE bilhetes SET status = 'RESERVADO', user_id = ?, username = ? WHERE numero = ?", 
+
+        c.execute("UPDATE bilhetes SET status = 'RESERVADO', user_id = ?, username = ? WHERE numero = ?",
                   (user_id, update.message.from_user.username or "SemUsername", num))
         conn.commit()
         conn.close()
-        
+
         num_fmt = formatar_numero(num, cfg['qtd_numeros'])
         resposta = (
             f"⏳ *RESERVA CONFIRMADA - Nº {num_fmt}*\n"
@@ -375,7 +375,7 @@ async def processar_mensagem_texto(update: Update, context: ContextTypes.DEFAULT
 async def receber_midia_comprovante(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.message.from_user.id
     cfg = get_config()
-    
+
     if user_id == ADMIN_TELEGRAM_ID and context.user_data.get("editing_media"):
         if update.message.photo:
             media_id = update.message.photo[-1].file_id
@@ -390,7 +390,7 @@ async def receber_midia_comprovante(update: Update, context: ContextTypes.DEFAUL
         update_config_field("media_id", media_id)
         update_config_field("media_type", media_type)
         context.user_data["editing_media"] = False
-        
+
         await update.message.reply_text(f"✅ *Mídia do Perfil atualizada com sucesso!* ({media_type.upper()})", parse_mode="Markdown")
         await admin_panel(update, context)
         return
@@ -399,25 +399,25 @@ async def receber_midia_comprovante(update: Update, context: ContextTypes.DEFAUL
     c = conn.cursor()
     c.execute("SELECT numero FROM bilhetes WHERE user_id = ? AND status = 'RESERVADO'", (user_id,))
     reserva = c.fetchone()
-    
+
     if not reserva:
         await update.message.reply_text("⚠️ Você não possui nenhum número reservado pendente de pagamento.")
         conn.close()
         return
-        
+
     num_reservado = reserva[0]
     conn.close()
-    
+
     num_fmt = formatar_numero(num_reservado, cfg['qtd_numeros'])
     await update.message.reply_text("📥 *Comprovante recebido!* Enviamos para o administrador liberar seu número em instantes.", parse_mode="Markdown")
-    
+
     keyboard = [
         [
             InlineKeyboardButton("✅ Aprovar", callback_data=f"admin_app_{num_reservado}_{user_id}"),
             InlineKeyboardButton("❌ Rejeitar", callback_data=f"admin_rej_{num_reservado}_{user_id}")
         ]
     ]
-    
+
     await context.bot.send_message(
         chat_id=ADMIN_TELEGRAM_ID,
         text=f"📥 *NOVO COMPROVANTE RECEBIDO*\n\n"
@@ -438,9 +438,9 @@ async def admin_panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.message.from_user.id if update.message else update.callback_query.from_user.id
     if user_id != ADMIN_TELEGRAM_ID:
         return
-        
+
     texto = "🛠️ *PAINEL DE CONTROLE - ADMINISTRADOR*\n────────────────────────────────────────\nSelecione uma opção de gestão:"
-    
+
     keyboard = [
         [InlineKeyboardButton("📊 Relatório Financeiro", callback_data="admin_relatorio")],
         [InlineKeyboardButton("⏳ Reservas Pendentes", callback_data="admin_pendentes")],
@@ -448,9 +448,9 @@ async def admin_panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton("🏆 Marcar Ganhadores", callback_data="admin_ganhador_prompt")],
         [InlineKeyboardButton("🧹 Zerar Memória / Novo Bingo", callback_data="admin_reset_confirm")]
     ]
-    
+
     reply_markup = InlineKeyboardMarkup(keyboard)
-    
+
     if update.message:
         await update.message.reply_text(texto, parse_mode="Markdown", reply_markup=reply_markup)
     else:
@@ -465,7 +465,7 @@ async def handle_admin_callback(update: Update, context: ContextTypes.DEFAULT_TY
     data = query.data
     await query.answer()
     cfg = get_config()
-    
+
     if data == "admin_menu":
         context.user_data["editing_field"] = None
         context.user_data["editing_media"] = False
@@ -478,11 +478,11 @@ async def handle_admin_callback(update: Update, context: ContextTypes.DEFAULT_TY
         c.execute("SELECT status, COUNT(*) FROM bilhetes GROUP BY status")
         stats = dict(c.fetchall())
         conn.close()
-        
+
         pagos = stats.get('PAGO', 0)
         reservados = stats.get('RESERVADO', 0)
         livres = stats.get('LIVRE', 0)
-        
+
         texto = (
             f"📊 *RELATÓRIO FINANCEIRO*\n"
             f"────────────────────────────────────────\n"
@@ -500,7 +500,7 @@ async def handle_admin_callback(update: Update, context: ContextTypes.DEFAULT_TY
         c.execute("SELECT numero, user_id, username FROM bilhetes WHERE status = 'RESERVADO'")
         reservas = c.fetchall()
         conn.close()
-        
+
         if not reservas:
             texto = "⏳ *RESERVAS PENDENTES*\n────────────────────────────────────────\nNenhuma reserva pendente."
             keyboard = [[InlineKeyboardButton("⬅️ Voltar", callback_data="admin_menu")]]
@@ -516,16 +516,16 @@ async def handle_admin_callback(update: Update, context: ContextTypes.DEFAULT_TY
                 InlineKeyboardButton(f"✅ Aprovar {num_fmt}", callback_data=f"admin_app_{num}_{u_id}"),
                 InlineKeyboardButton(f"❌ Liberar {num_fmt}", callback_data=f"admin_rej_{num}_{u_id}")
             ])
-            
+
         keyboard.append([InlineKeyboardButton("⬅️ Voltar", callback_data="admin_menu")])
         await query.message.edit_text(texto, parse_mode="Markdown", reply_markup=InlineKeyboardMarkup(keyboard))
 
     elif data == "admin_config_menu":
         status_media = f"Ativa ({cfg['media_type'].upper()})" if cfg['media_id'] else "Sem Mídia"
-        
+
         p2 = cfg['premio2'] if cfg['premio2'] else "Não configurado"
         p3 = cfg['premio3'] if cfg['premio3'] else "Não configurado"
-        
+
         texto = (
             f"⚙️ *CONFIGURAÇÃO DA AÇÃO*\n"
             f"────────────────────────────────────────\n"
@@ -619,7 +619,7 @@ async def handle_admin_callback(update: Update, context: ContextTypes.DEFAULT_TY
         c.execute("UPDATE bilhetes SET status = 'PAGO' WHERE numero = ?", (int(num),))
         conn.commit()
         conn.close()
-        
+
         num_fmt = formatar_numero(int(num), cfg['qtd_numeros'])
         await query.message.edit_text(f"✅ Bilhete *Nº {num_fmt}* APROVADO!", parse_mode="Markdown")
         try:
@@ -634,7 +634,7 @@ async def handle_admin_callback(update: Update, context: ContextTypes.DEFAULT_TY
         c.execute("UPDATE bilhetes SET status = 'LIVRE', user_id = NULL, username = NULL WHERE numero = ?", (int(num),))
         conn.commit()
         conn.close()
-        
+
         num_fmt = formatar_numero(int(num), cfg['qtd_numeros'])
         await query.message.edit_text(f"❌ Bilhete *Nº {num_fmt}* liberado.", parse_mode="Markdown")
 
@@ -647,20 +647,20 @@ async def handle_admin_callback(update: Update, context: ContextTypes.DEFAULT_TY
             keyboard.append([InlineKeyboardButton("🥈 2º Prêmio", callback_data="win_prize_2")])
         if cfg['premio3']:
             keyboard.append([InlineKeyboardButton("🥉 3º Prêmio", callback_data="win_prize_3")])
-            
+
         keyboard.append([InlineKeyboardButton("⬅️ Voltar", callback_data="admin_menu")])
         await query.message.edit_text(texto, parse_mode="Markdown", reply_markup=InlineKeyboardMarkup(keyboard))
 
     elif data.startswith("win_prize_"):
         prize_num = data.split("_")[2]
         context.user_data["selecting_winner_prize"] = prize_num
-        
+
         conn = sqlite3.connect(DB_NAME)
         c = conn.cursor()
         c.execute("SELECT numero, username FROM bilhetes WHERE status = 'PAGO' ORDER BY numero ASC")
         pagos = c.fetchall()
         conn.close()
-        
+
         if not pagos:
             await query.message.edit_text("⚠️ Não há bilhetes pagos para realizar o sorteio.", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ Voltar", callback_data="admin_menu")]]))
             return
@@ -690,18 +690,18 @@ async def handle_admin_callback(update: Update, context: ContextTypes.DEFAULT_TY
     elif data.startswith("admin_win_"):
         num = int(data.split("_")[2])
         prize_num = context.user_data.get("selecting_winner_prize", "1")
-        
+
         conn = sqlite3.connect(DB_NAME)
         c = conn.cursor()
         c.execute("SELECT user_id, username FROM bilhetes WHERE numero = ?", (num,))
         res = c.fetchone()
         conn.close()
-        
+
         if res:
             u_id, u_name = res
             nome_premio = cfg['premio'] if prize_num == "1" else (cfg['premio2'] if prize_num == "2" else cfg['premio3'])
             num_fmt = formatar_numero(num, cfg['qtd_numeros'])
-            
+
             texto = (
                 f"🎉 *GANHADOR REGISTRADO ({prize_num}º PRÊMIO)!*\n"
                 f"────────────────────────────────────────\n"
@@ -736,20 +736,20 @@ def render_termux_dashboard():
 def main():
     init_db()
     render_termux_dashboard()
-    
+
     app = ApplicationBuilder().token(TELEGRAM_BOT_TOKEN).build()
-    
+
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("admin", admin_panel))
-    
+
     app.add_handler(CallbackQueryHandler(ver_numeros, pattern="^ver_numeros$"))
     app.add_handler(CallbackQueryHandler(meus_bilhetes, pattern="^meus_bilhetes$"))
     app.add_handler(CallbackQueryHandler(start, pattern="^menu_principal$"))
     app.add_handler(CallbackQueryHandler(handle_admin_callback, pattern="^(admin_|cfg_|set_qtd_|win_prize_)"))
-    
+
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, processar_mensagem_texto))
     app.add_handler(MessageHandler(filters.PHOTO | filters.VIDEO | filters.Document.ALL, receber_midia_comprovante))
-    
+
     app.run_polling()
 
 if __name__ == "__main__":
