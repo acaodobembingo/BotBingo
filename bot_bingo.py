@@ -1,3 +1,5 @@
+from dotenv 
+import load_dotenv load_dotenv()
 import logging
 import json
 import sqlite3
@@ -17,10 +19,9 @@ from telegram.ext import (
 # ==============================================================================
 # CONFIGURAÇÕES INICIAIS DO BOT
 # ==============================================================================
-TELEGRAM_BOT_TOKEN = "8838344597:AAHLPzGMObSFDMFhQBxwFGDjKktKfTMT5e0"
-GEMINI_API_KEY = ""
-ADMIN_TELEGRAM_ID = 7270763921  # Substitua pelo seu ID numérico do Telegram
-
+TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+ADMIN_TELEGRAM_ID = int(os.getenv("ADMIN_TELEGRAM_ID"))
 DB_NAME = "bingo_beneficente.db"
 
 logging.basicConfig(
